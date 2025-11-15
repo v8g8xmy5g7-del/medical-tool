@@ -1,89 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>3D Surgical Clamp – Rotate & Zoom</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <style>
-    body { margin:0; overflow:hidden; background:#f0f4f8; font-family:Arial,Helvetica,sans-serif; }
-    #container { width:100vw; height:100vh; }
-    #info {
-      position:absolute; top:15px; left:15px; background:rgba(0,0,0,0.7); color:#fff;
-      padding:12px 16px; border-radius:8px; font-size:14px; max-width:340px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Clamp 3D Inspector</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  html,body{margin:0;height:100%;background:#f0f4f8;font-family:Arial,Helvetica,sans-serif;overflow:hidden;}
+  #container{position:relative;width:100%;height:100%;display:flex;justify-content:center;align-items:center;}
+  #info{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.7);color:#fff;padding:8px 12px;border-radius:6px;font-size:13px;}
+  #emoji{font-size:3rem;position:absolute;pointer-events:none;opacity:0.6;z-index:1;}
+</style>
 
-  <!-- Three.js + GLTF loader + OrbitControls -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.168.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.168.0/examples/js/loaders/GLTFLoader.js"></script>
+<!-- Three.js + controls + GLTF loader -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.168.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.168.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
+
 <body>
-  <div id="container"></div>
+<div id="container">
+  <div id="emoji">Wrench</div>
+  <canvas id="canvas"></canvas>
+</div>
 
-  <div id="info">
-    <strong>Drag</strong> to rotate • <strong>Scroll / pinch</strong> to zoom
-  </div>
+<div id="info">
+  <strong>Drag</strong> to rotate • <strong>Scroll / pinch</strong> to zoom
+</div>
 
-  <script>
-    // ---------- Scene Setup ----------
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f4f8);
+<script>
+  // ---------- Canvas ----------
+  const canvas = document.getElementById('canvas');
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  renderer.setSize(800, 600);               // fits 13‑15" laptop
+  renderer.setPixelRatio(window.devicePixelRatio);
 
-    const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
-    camera.position.set(0.8, 0.6, 1.2);
+  // ---------- Scene ----------
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf0f4f8);
 
-    const renderer = new THREE.WebGLRenderer({ antialias:true });
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(devicePixelRatio);
-    document.getElementById('container').appendChild(renderer.domElement);
+  const camera = new THREE.PerspectiveCamera(45, 800/600, 0.1, 100);
+  camera.position.set(0.8, 0.6, 1.2);
 
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 0.5;   // zoom in
-    controls.maxDistance = 5;     // zoom out
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.minDistance = 0.5;
+  controls.maxDistance = 4;
 
-    // ---------- Lighting ----------
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    dirLight.position.set(3, 5, 4);
-    scene.add(dirLight);
+  // ---------- Lights ----------
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir.position.set(3,5,4);
+  scene.add(dir);
 
-    // ---------- Load 3D Surgical Clamp (GLB) ----------
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-      // Free realistic clamp model (public domain)
-      'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SurgicalClamp/glTF/SurgicalClamp.gltf',
-      (gltf) => {
-        const clamp = gltf.scene;
-        clamp.scale.set(2, 2, 2);          // make it bigger
-        clamp.rotation.set(0, Math.PI, 0); // orient nicely
-        scene.add(clamp);
+  // ---------- Load Clamp ----------
+  const loader = new THREE.GLTFLoader();
+  loader.load(
+    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SurgicalClamp/glTF/SurgicalClamp.gltf',
+    gltf => {
+      const clamp = gltf.scene;
+      clamp.scale.set(2,2,2);
+      clamp.rotation.set(0, Math.PI, 0);
+      const box = new THREE.Box3().setFromObject(clamp);
+      const center = box.getCenter(new THREE.Vector3());
+      clamp.position.sub(center);
+      scene.add(clamp);
+    },
+    undefined,
+    err => console.error(err)
+  );
 
-        // Auto-center the model
-        const box = new THREE.Box3().setFromObject(clamp);
-        const center = box.getCenter(new THREE.Vector3());
-        clamp.position.sub(center);
-      },
-      undefined,
-      (err) => console.error('GLTF load error:', err)
-    );
+  // ---------- Resize (keep centered) ----------
+  window.addEventListener('resize', () => {
+    const w = Math.min(window.innerWidth, 900);
+    const h = Math.min(window.innerHeight, 700);
+    renderer.setSize(w, h);
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
+  });
 
-    // ---------- Resize ----------
-    window.addEventListener('resize', () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-    });
-
-    // ---------- Animation Loop ----------
-    function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    }
-    animate();
-  </script>
+  // ---------- Animation ----------
+  function animate(){
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
 </body>
 </html>
